@@ -1,0 +1,45 @@
+name: Daily tag
+
+on:
+  # Run this daily at 13:17 GMT+0, a little after 9AM EST.
+  schedule:
+    - cron: '17 13 * * *'
+
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Enter version to use as tag'
+        required: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          ssh-key: ${{ secrets.COMMIT_KEY }}
+
+      - name: Get tag
+        id: tag
+        env:
+          INPUT: ${{ github.event.inputs.tag }}
+        run: |
+          if [ -n "$INPUT" ]; then
+            echo "::set-output name=tag::$(echo $INPUT)"  
+          else
+            # input is empty - daily trigger, so use date
+            echo "::set-output name=tag::$(date +'%Y-%m-%d')"  
+          fi
+
+      - name: Tag commit
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          git tag ${TAG}
+
+      - name: Push tag
+        run: |
+          git push --tags
