@@ -1,0 +1,34 @@
+# Core
+numpy
+pandas
+matplotlib
+scikit-learn
+scikit-image
+opencv-python
+Pillow
+tqdm
+gdown
+natsort
+termcolor
+requests
+
+# OCR & Text Detection
+mmocr
+pdf2image
+PyMuPDF
+python-docx
+fitz  # Optional alias; use only if fitz isn't provided via PyMuPDF
+unidecode
+jiwer
+rapidfuzz
+fast_ctc_decode
+
+# Deep Learning
+torch
+torchvision==0.2.1
+tensorflow
+tensorflow-datasets
+
+# Notebook
+ipython
+notebook

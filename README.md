@@ -1,5 +1,4 @@
-# GSoC2025-Final-Submission
-## RenAIssance OCR  
+# RenAIssance OCR  
 **Improving Renaissance Spanish OCR with CNN–RNN Hybrids and Weighted Learning**  
 
 Kate O’Reilly · Trinity College Dublin  
@@ -12,7 +11,7 @@ Google Summer of Code 2025
 This repository provides an end-to-end **OCR pipeline** for Renaissance-era Spanish manuscripts.  
 The system integrates:  
 
-- **Text detection**: CRAFT, Hi-SAM  
+- **Text detection**: CRAFT, DBNet, PSENet, Hi-SAM  
 - **Text recognition**: CRNN (CNN → BiLSTM → CTC)  
 - **Restoration**: DocumentEnhancer preprocessing & ShabbyPages-trained restoration model  
 - **Data strategy**: synthetic + real training data with oversampling of rare characters  
@@ -122,10 +121,7 @@ python train_crnn_spanish_ocr.py \
 - Synthetic: data/synth/**/<word_image>.png
 - Rare characters (oversampled): data/rare_chars/**/<word_image>.png
 
-The script scans directories recursively; labels are extracted from filenames and cleaned (NFC normalisation, whitelist, trailing "(4)" removal, space collapse).
-
-Some preprepared datasets can be found here: https://drive.google.com/drive/folders/1qxa7J-nKMwiyAysx3xKcBUGqFWUPE07f?usp=drive_link
-Both a mix of synthetic and real
+The script scans directories recursively; labels are extracted from filenames and cleaned (NFC normalization, whitelist, trailing "(4)" removal, space collapse).
 
 ### Key Features
 
@@ -202,7 +198,7 @@ python restoration/train_shabbypages.py ^
   --w_l1 1.0 --w_ms 0.0 --w_grad 0.0 --fg_weight 1.0 ^
   --cpu
 ```
-### Recommended Training Schedules
+### Reccommended Trainnig Schedules
 - A. L1 warmup → add structure terms
 
 ```bash

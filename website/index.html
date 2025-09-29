@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Renaissance OCR — Prototype</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root{--midnight:#0B1B34;--ink:#0E2A47;--cream:#F7F2E7;--gold:#D6B26E;}
+  body{margin:0;color:var(--cream);font-family:Inter,system-ui,sans-serif;
+    background:radial-gradient(1200px 800px at 50% -10%,#0E2A47 0%,#0B1B34 55%,#0B1B34 100%)}
+  h1,h2,h3{font-family:"EB Garamond",serif;margin:0}
+  .container{max-width:1100px;margin:0 auto;padding:24px}
+  .header{background:rgba(14,42,71,.8);padding:12px 24px;display:flex;align-items:center;justify-content:space-between}
+  .card{background:rgba(27,57,104,.5);border-radius:14px;padding:18px;margin-bottom:20px}
+  .btn{cursor:pointer;border:0;border-radius:8px;padding:8px 14px;margin:4px}
+  .btn-primary{background:var(--cream);color:var(--ink)}
+  .btn-ghost{background:transparent;color:var(--cream);border:1px solid rgba(255,255,255,.25)}
+  .progress{height:10px;background:rgba(255,255,255,.2);border-radius:999px;overflow:hidden}
+  .progress>div{height:100%;background:var(--gold);width:0;transition:width .25s ease}
+
+  /* Workspace layout */
+  .workspace{display:flex;gap:20px;align-items:flex-start}
+  .left-col{flex:0 0 260px}
+  .facsimile{border-radius:12px;overflow:hidden;border:2px solid rgba(255,255,255,.2);position:relative}
+  .facsimile img{display:block;width:100%;height:auto;transition:transform .25s ease, filter .2s ease, opacity .2s ease}
+  .facsimile .badge{position:absolute;left:8px;top:8px;background:rgba(0,0,0,.45);padding:2px 8px;border-radius:999px;font-size:12px}
+  .controls{margin-top:0} /* now on the right column */
+
+  .row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:8px 0}
+  .row label{font-size:14px}
+  .range{width:180px}
+  .badges{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .chip{font-size:12px;padding:4px 8px;border-radius:999px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.08)}
+
+  /* split simulation */
+  .page-left img{ transform: translateX(0) scaleX(2); transform-origin:left center; }
+  .page-right img{ transform: translateX(-50%) scaleX(2); transform-origin:left center; }
+
+  .transcription{
+    flex:1;background:#fff;color:#111;padding:14px;border-radius:12px;
+    line-height:1.6;font-family:"EB Garamond",serif;min-height:300px;
+    white-space: pre-wrap;
+  }
+  .word{display:inline-block;padding:2px 5px;margin:1px;border-radius:6px;cursor:text}
+  .low{background:#fff3b0}
+
+  section[hidden]{display:none!important}
+
+  /* Modal zoom */
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:50}
+  .modal.open{display:flex}
+  .modal-inner{background:rgba(10,25,50,.95);border:1px solid rgba(255,255,255,.15);border-radius:14px;max-width:92vw;max-height:92vh;display:flex;flex-direction:column;gap:10px;padding:12px}
+  .modal-header{display:flex;align-items:center;justify-content:space-between}
+  .modal-img-wrap{position:relative;overflow:hidden;border-radius:12px;border:1px solid rgba(255,255,255,.2);background:#000;display:flex;align-items:center;justify-content:center}
+  .modal-img-wrap img{max-width:none;max-height:none;transition:transform .2s ease, filter .2s ease}
+  .modal .badge{position:absolute;left:10px;top:10px;background:rgba(0,0,0,.5);padding:2px 8px;border-radius:999px;font-size:12px;color:#fff}
+  .modal-controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .kbd{font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:12px; padding:2px 6px; border-radius:6px; background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.2)}
+</style>
+</head>
+<body>
+  <header class="header">
+    <h1>✒️ Renaissance OCR — Prototype</h1>
+    <div>
+      <button id="btnDiplomatic" class="btn btn-primary">Diplomatic</button>
+      <button id="btnNormalized" class="btn">Normalized</button>
+      <button id="btnExport" class="btn btn-primary" style="display:none">Export</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Upload -->
+    <section id="screenUpload" class="card">
+      <h2>Upload a degraded Spanish PDF</h2>
+      <input type="file" id="file" accept="application/pdf" />
+      <p class="small">This is a prototype — uploading just simulates OCR.</p>
+    </section>
+
+    <!-- Preprocess (Demo) -->
+    <section id="screenPreprocess" class="card" hidden>
+      <h2 style="margin-bottom:8px">Preprocess (demo)</h2>
+      <div class="workspace">
+        <!-- LEFT: image -->
+        <div class="left-col">
+          <div class="facsimile" id="ppPreview">
+            <span class="badge" id="ppBadge">Preview</span>
+            <img id="ppImage" src="facsimile1.png" alt="Preview" onerror="this.onerror=null;this.src='facsimile.png'"/>
+          </div>
+          <div class="row" style="margin-top:8px">
+            <div class="btn-ghost kbd">Page</div>
+            <div>
+              <button id="btnPrev" class="btn btn-ghost">← Prev</button>
+              <button id="btnNext" class="btn btn-ghost">Next →</button>
+              <span id="pageIndicator" class="kbd">1 / 2</span>
+            </div>
+          </div>
+          <div class="row">
+            <button id="btnZoom" class="btn btn-ghost">Zoom</button>
+          </div>
+        </div>
+
+        <!-- RIGHT: controls -->
+        <div class="controls" style="flex:1">
+          <div class="card">
+            <div class="row">
+              <label><input type="checkbox" id="ppSplit"> Split two-page</label>
+              <div>
+                <label><input type="radio" name="ppSide" value="left" id="ppSideLeft" checked> Left</label>
+                <label style="margin-left:8px"><input type="radio" name="ppSide" value="right" id="ppSideRight"> Right</label>
+              </div>
+            </div>
+            <hr style="border-color:rgba(255,255,255,.15);margin:10px 0">
+            <div class="row">
+              <label>Contrast</label>
+              <input id="ppContrast" type="range" min="0.5" max="2" step="0.05" value="1.0" class="range">
+            </div>
+            <div class="row">
+              <label>Brightness</label>
+              <input id="ppBrightness" type="range" min="0.8" max="1.4" step="0.02" value="1.0" class="range">
+            </div>
+            <div class="row">
+              <label>Saturation</label>
+              <input id="ppSaturate" type="range" min="0" max="1.5" step="0.05" value="1.0" class="range">
+            </div>
+            <div class="row">
+              <label>Grayscale</label>
+              <input id="ppGray" type="range" min="0" max="1" step="0.05" value="0" class="range">
+            </div>
+            <div class="row">
+              <label>Blur (denoise)</label>
+              <input id="ppBlur" type="range" min="0" max="2" step="0.1" value="0" class="range">
+            </div>
+            <div class="badges" id="activeChips"></div>
+            <div class="row" style="margin-top:12px">
+              <button id="btnStartOCR" class="btn btn-primary">Start OCR →</button>
+              <button id="btnSkipOCR" class="btn btn-ghost">Skip</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Processing -->
+    <section id="screenProcessing" class="card" hidden>
+      <h2>Processing…</h2>
+      <div class="progress"><div id="bar"></div></div>
+      <p id="pct">0%</p>
+    </section>
+
+    <!-- Workspace -->
+    <section id="screenWorkspace" class="workspace" hidden>
+      <div class="left-col">
+        <div class="facsimile card" id="wsFacsimile">
+          <span class="badge" id="wsBadge">Folio 1</span>
+          <img id="wsImage" src="facsimile1.png" alt="Facsimile page" onerror="this.onerror=null;this.src='facsimile.png'"/>
+        </div>
+        <div class="row">
+          <button id="wsZoom" class="btn btn-ghost">Zoom</button>
+          <div style="margin-left:auto">
+            <button id="toExport" class="btn btn-primary">Export…</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="transcription" id="transcription"></div>
+    </section>
+
+    <!-- Export -->
+    <section id="screenExport" class="card" hidden>
+      <h2>Export transcription</h2>
+      <button id="btnTXT" class="btn btn-primary">Download TXT</button>
+      <button id="btnMD" class="btn btn-primary">Download MD</button>
+      <button id="btnTEI" class="btn btn-primary">Download TEI</button>
+      <button id="backToWorkspace" class="btn">← Back</button>
+    </section>
+  </main>
+
+  <!-- Modal Zoom -->
+  <div id="zoomModal" class="modal" aria-hidden="true">
+    <div class="modal-inner" role="dialog" aria-modal="true" aria-label="Zoomed facsimile">
+      <div class="modal-header">
+        <strong>Facsimile viewer</strong>
+        <div class="modal-controls">
+          <span class="kbd">Zoom</span>
+          <!-- less zoomy: default 1, min 1, max 2 -->
+          <input id="zoomSlider" type="range" min="1" max="2" step="0.05" value="1">
+          <span class="kbd">ESC</span>
+          <button id="btnCloseZoom" class="btn btn-ghost">Close</button>
+        </div>
+      </div>
+      <div class="modal-img-wrap" style="width:82vw;height:78vh">
+        <span class="badge" id="zoomBadge">Folio</span>
+        <img id="zoomImage" src="facsimile1.png" alt="Zoomed facsimile" onerror="this.onerror=null;this.src='facsimile.png'"/>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* --- Sample texts with line breaks --- */
+const SAMPLE_DIPLO = `legio de otras ſimpatias ) y 
+tan ſuyo, que à nadie deue la 
+menor tilde, Para que Prin- 
+cipe lo admita, Noble lo eſ- 
+time, Hijo lo lea, Padre lo 
+enſeñe , y feliçiſſimo viuã 
+tan ſanto como Noble. Que 
+ſi à V. S. eſte le diere guſto, 
+para ſu primer infante podre 
+teruirle cô vna Caritilla para 
+inſtruyr niños Nobles. Que 
+halle al lado deſtos papeles, 
+con la miſma diſpoſicion , y 
+recoxi con igual cuydado. `;
+
+const SAMPLE_NORM  = `legio de otras simpatias ) y 
+tan suyo, que a nadie deue la 
+menor tilde, Para que Prin- 
+cipe lo admita, Noble lo es- 
+time, Hijo lo lea, Padre lo 
+enseñe , y felicisimo viva 
+tan santo como Noble. Que 
+si a V. S. este le diere gusto, 
+para su primer infante podre 
+teruirle con una Caritilla para 
+instruyr niños Nobles. Que 
+halle al lado destos papeles, 
+con la misma disposicion , y 
+recoxi con igual cuydado. 
+
+`;
+
+/* low-confidence word indices (by word order) */
+const LOWCONF_DIPLO = [1,5,10,16];
+const LOWCONF_NORM = [3,7,14,20];
+
+/* --- DOM elements --- */
+const scrU=document.getElementById("screenUpload");
+const scrPP=document.getElementById("screenPreprocess");
+const scrP=document.getElementById("screenProcessing");
+const scrW=document.getElementById("screenWorkspace");
+const scrE=document.getElementById("screenExport");
+const file=document.getElementById("file");
+const bar=document.getElementById("bar");
+const pct=document.getElementById("pct");
+const txtDiv=document.getElementById("transcription");
+const btnDipl=document.getElementById("btnDiplomatic");
+const btnNorm=document.getElementById("btnNormalized");
+const btnExp=document.getElementById("btnExport");
+const btnTXT=document.getElementById("btnTXT");
+const btnMD=document.getElementById("btnMD");
+const btnTEI=document.getElementById("btnTEI");
+const btnBack=document.getElementById("backToWorkspace");
+const toExport=document.getElementById("toExport");
+
+/* Preprocess controls */
+const ppPreview=document.getElementById("ppPreview");
+const ppImage=document.getElementById("ppImage");
+const ppBadge=document.getElementById("ppBadge");
+const ppSplit=document.getElementById("ppSplit");
+const ppSideLeft=document.getElementById("ppSideLeft");
+const ppSideRight=document.getElementById("ppSideRight");
+const rContrast=document.getElementById("ppContrast");
+const rBright=document.getElementById("ppBrightness");
+const rSat=document.getElementById("ppSaturate");
+const rGray=document.getElementById("ppGray");
+const rBlur=document.getElementById("ppBlur");
+const btnStartOCR=document.getElementById("btnStartOCR");
+const btnSkipOCR=document.getElementById("btnSkipOCR");
+const activeChips=document.getElementById("activeChips");
+const btnPrev=document.getElementById("btnPrev");
+const btnNext=document.getElementById("btnNext");
+const pageIndicator=document.getElementById("pageIndicator");
+
+const wsFacsimile=document.getElementById("wsFacsimile");
+const wsImage=document.getElementById("wsImage");
+const wsBadge=document.getElementById("wsBadge");
+const wsZoomBtn=document.getElementById("wsZoom");
+
+/* Modal */
+const zoomModal=document.getElementById("zoomModal");
+const zoomImage=document.getElementById("zoomImage");
+const zoomBadge=document.getElementById("zoomBadge");
+const zoomSlider=document.getElementById("zoomSlider");
+const btnZoom=document.getElementById("btnZoom");
+const btnCloseZoom=document.getElementById("btnCloseZoom");
+
+/* --- state --- */
+let mode="diplomatic";
+let tokens=[];
+let pageIdx=0; // 0-based
+const pageSources=["facsimile1.png","facsimile2.png"]; // add more if you want
+const fallbackSrc="facsimile.png";
+
+/* Normalize newlines to LF */
+function normalizeNewlines(s){ return s.replace(/\r\n?/g, "\n"); }
+
+/* Compose CSS filters string from sliders */
+function filtersFromSliders(){
+  const parts=[];
+  const g=parseFloat(rGray.value||"0");
+  if(g>0) parts.push(`grayscale(${g})`);
+  parts.push(`saturate(${parseFloat(rSat.value||"1")})`);
+  parts.push(`contrast(${parseFloat(rContrast.value||"1")})`);
+  parts.push(`brightness(${parseFloat(rBright.value||"1")})`);
+  const blur=parseFloat(rBlur.value||"0"); if(blur>0) parts.push(`blur(${blur}px)`);
+  return parts.join(" ");
+}
+
+/* Update preview chips + classes + filters */
+function updatePreview(){
+  // chips
+  const labels=[];
+  if(ppSplit.checked) labels.push("Split: " + (ppSideLeft.checked?"Left":"Right"));
+  labels.push(`Contrast ×${(+rContrast.value).toFixed(2)}`);
+  labels.push(`Brightness ×${(+rBright.value).toFixed(2)}`);
+  labels.push(`Saturation ×${(+rSat.value).toFixed(2)}`);
+  if(+rGray.value>0) labels.push(`Grayscale ${Math.round(+rGray.value*100)}%`);
+  if(+rBlur.value>0) labels.push(`Blur ${(+rBlur.value).toFixed(1)}px`);
+
+  activeChips.innerHTML="";
+  labels.forEach(t=>{
+    const c=document.createElement("span"); c.className="chip"; c.textContent=t; activeChips.appendChild(c);
+  });
+
+  // split classes
+  ppPreview.classList.toggle("page-left", ppSplit.checked && ppSideLeft.checked);
+  ppPreview.classList.toggle("page-right", ppSplit.checked && ppSideRight.checked);
+
+  // filters
+  ppImage.style.filter = filtersFromSliders();
+
+  // badge
+  ppBadge.textContent = `Preview • Page ${pageIdx+1}`;
+}
+
+/* Sync workspace from preprocess */
+function syncWorkspacePreview(){
+  wsFacsimile.classList.toggle("page-left", ppPreview.classList.contains("page-left"));
+  wsFacsimile.classList.toggle("page-right", ppPreview.classList.contains("page-right"));
+  wsImage.style.filter = ppImage.style.filter;
+  wsBadge.textContent = `Folio ${pageIdx+1}`;
+}
+
+/* Render words with preserved breaks */
+function renderWords(text, lowIdxs){
+  txtDiv.innerHTML="";
+  const normalized = normalizeNewlines(text);
+  tokens = normalized.split(/(\r\n|\r|\n|\s+)/);
+  let wordOrdinal = 0;
+
+  tokens.forEach((tok, tokenIdx)=>{
+    if (tok === "\r" || tok === "\r\n" || tok === "\n") {
+      txtDiv.appendChild(document.createElement("br"));
+      return;
+    }
+    if (/^\s+$/.test(tok)) {
+      txtDiv.appendChild(document.createTextNode(tok));
+      return;
+    }
+    const span = document.createElement("span");
+    span.textContent = tok;
+    span.contentEditable = true;
+    span.className = "word " + (lowIdxs.includes(wordOrdinal) ? "low" : "");
+    span.dataset.tokenIdx = String(tokenIdx);
+    span.addEventListener("input", ()=>{
+      tokens[tokenIdx] = span.textContent;
+      span.classList.remove("low");
+    });
+    txtDiv.appendChild(span);
+    wordOrdinal++;
+  });
+}
+function currentText(){ return tokens.join("").replace(/\r\n?/g,"\n"); }
+
+/* Page helpers */
+function loadPage(idx){
+  pageIdx = (idx+pageSources.length)%pageSources.length;
+  const src=pageSources[pageIdx];
+  ppImage.src = src; wsImage.src = src; zoomImage.src = src;
+  ppImage.onerror = wsImage.onerror = zoomImage.onerror = function(){ this.onerror=null; this.src=fallbackSrc; };
+  pageIndicator.textContent = `${pageIdx+1} / ${pageSources.length}`;
+  updatePreview(); syncWorkspacePreview();
+}
+
+/* Navigation */
+function goPreprocess(){ scrU.hidden=true; scrPP.hidden=false; updatePreview(); loadPage(0); }
+function goProcessing(){
+  scrPP.hidden=true; scrP.hidden=false;
+  let p=0; const id=setInterval(()=>{
+    p=Math.min(100,p+15);
+    bar.style.width=p+"%"; pct.textContent=p+"%";
+    if(p>=100){clearInterval(id); setTimeout(goWorkspace,500);}
+  },300);
+}
+function goWorkspace(){
+  scrP.hidden=true; scrW.hidden=false; btnExp.style.display="inline-block";
+  syncWorkspacePreview();
+  if(mode==="diplomatic"){renderWords(SAMPLE_DIPLO,LOWCONF_DIPLO);} else {renderWords(SAMPLE_NORM,LOWCONF_NORM);}
+}
+function goExport(){scrW.hidden=true; scrE.hidden=false;}
+function backWorkspace(){scrE.hidden=true; scrW.hidden=false;}
+
+/* Downloads */
+function download(content, filename, mime){
+  const blob=new Blob([content],{type:mime});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");a.href=url;a.download=filename;a.click();
+  URL.revokeObjectURL(url);
+}
+function escapeXML(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+/* Modal zoom logic */
+function openZoom(){
+  zoomModal.classList.add("open");
+  // mirror classes/filters
+  const left = wsFacsimile.classList.contains("page-left");
+  const right = wsFacsimile.classList.contains("page-right");
+  zoomImage.style.filter = wsImage.style.filter;
+  zoomBadge.textContent = `Folio ${pageIdx+1}`;
+  const wrap = zoomImage.parentElement;
+  wrap.classList.toggle("page-left", left);
+  wrap.classList.toggle("page-right", right);
+  zoomSlider.value = "1"; // start at 1x
+  applyZoom();
+}
+function closeZoom(){ zoomModal.classList.remove("open"); }
+function applyZoom(){ zoomImage.style.transform = `scale(${parseFloat(zoomSlider.value||"1")})`; }
+
+/* Wire up */
+file.addEventListener("change", goPreprocess);
+
+[ppSplit, ppSideLeft, ppSideRight, rContrast, rBright, rSat, rGray, rBlur]
+  .forEach(el=> el.addEventListener("input", ()=>{ updatePreview(); }));
+
+document.getElementById("btnPrev").addEventListener("click", ()=> loadPage(pageIdx-1));
+document.getElementById("btnNext").addEventListener("click", ()=> loadPage(pageIdx+1));
+
+btnStartOCR.addEventListener("click", goProcessing);
+btnSkipOCR.addEventListener("click", ()=>{ scrPP.hidden=true; scrW.hidden=false; btnExp.style.display="inline-block"; syncWorkspacePreview(); if(mode==="diplomatic"){renderWords(SAMPLE_DIPLO,LOWCONF_DIPLO);} else {renderWords(SAMPLE_NORM,LOWCONF_NORM);} });
+
+btnDipl.onclick=()=>{mode="diplomatic"; btnDipl.className="btn btn-primary"; btnNorm.className="btn"; if(!scrW.hidden) renderWords(SAMPLE_DIPLO,LOWCONF_DIPLO);};
+btnNorm.onclick=()=>{mode="normalized"; btnNorm.className="btn btn-primary"; btnDipl.className="btn"; if(!scrW.hidden) renderWords(SAMPLE_NORM,LOWCONF_NORM);};
+
+btnExp.onclick=goExport; toExport.onclick=goExport; btnBack.onclick=backWorkspace;
+
+btnTXT.onclick=()=>download(currentText(), "transcription.txt","text/plain");
+btnMD.onclick=()=>download("# Transcription\n\n"+currentText(), "transcription.md","text/markdown");
+btnTEI.onclick=()=>{ const safe = escapeXML(currentText()); const tei = `<?xml version="1.0"?>\n<TEI><text><body><p>${safe}</p></body></text></TEI>`; download(tei,"transcription.xml","application/xml"); };
+
+/* Zoom triggers */
+document.getElementById("btnZoom").addEventListener("click", openZoom);
+wsZoomBtn.addEventListener("click", openZoom);
+document.getElementById("btnCloseZoom").addEventListener("click", closeZoom);
+document.getElementById("zoomModal").addEventListener("click", (e)=>{ if(e.target===zoomModal) closeZoom(); });
+document.getElementById("zoomSlider").addEventListener("input", applyZoom);
+document.addEventListener("keydown", (e)=>{ if(e.key==="Escape") closeZoom(); });
+</script>
+</body>
+</html>
