@@ -122,7 +122,10 @@ python train_crnn_spanish_ocr.py \
 - Synthetic: data/synth/**/<word_image>.png
 - Rare characters (oversampled): data/rare_chars/**/<word_image>.png
 
-The script scans directories recursively; labels are extracted from filenames and cleaned (NFC normalization, whitelist, trailing "(4)" removal, space collapse).
+The script scans directories recursively; labels are extracted from filenames and cleaned (NFC normalisation, whitelist, trailing "(4)" removal, space collapse).
+
+Some preprepared datasets can be found here: https://drive.google.com/drive/folders/1qxa7J-nKMwiyAysx3xKcBUGqFWUPE07f?usp=drive_link
+Both a mix of synthetic and real
 
 ### Key Features
 
